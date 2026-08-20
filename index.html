@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emicon Candidate Verification</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom Emicon Colors */
+    .bg-emicon-navy { background-color: #002D62; }
+    .bg-emicon-orange { background-color: #FF7F50; }
+    .text-emicon-navy { color: #002D62; }
+    .text-emicon-orange { color: #FF7F50; }
+    .border-emicon-orange { border-color: #FF7F50; }
+  </style>
+</head>
+<body class="bg-gray-100 flex h-screen overflow-hidden font-sans">
+
+  <!-- Sidebar Navigation -->
+  <aside class="w-64 bg-emicon-navy text-white flex flex-col shadow-xl">
+    <div class="p-6 border-b border-emicon-orange">
+      <h1 class="text-2xl font-bold text-emicon-orange text-center">Emicon Candidate Verification</h1>
+    </div>
+    <nav class="flex-1 mt-2" id="nav-menu">
+      <button onclick="switchPage('Home')" class="w-full text-left p-4 hover:bg-emicon-orange transition font-bold bg-emicon-orange" data-page="Home">Home Page</button>
+      <button onclick="switchPage('Criminal')" class="w-full text-left p-4 hover:bg-emicon-orange transition" data-page="Criminal">Criminal Verification</button>
+      <button onclick="switchPage('Education')" class="w-full text-left p-4 hover:bg-emicon-orange transition" data-page="Education">Education Verification</button>
+      <button onclick="switchPage('Address')" class="w-full text-left p-4 hover:bg-emicon-orange transition" data-page="Address">Address Verification</button>
+      <button onclick="switchPage('Status')" class="w-full text-left p-4 hover:bg-emicon-orange transition" data-page="Status">Overall Status Page</button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-8 overflow-auto relative">
+    
+    <!-- Dynamic Table View -->
+    <div id="table-view" class="bg-white h-full rounded shadow flex flex-col">
+      <h2 id="page-title" class="text-2xl text-emicon-navy font-bold p-6 border-b">Home Page</h2>
+      <div class="p-6 flex-1 overflow-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-emicon-navy text-white">
+              <th class="p-3">BGV Transaction ID</th>
+              <th class="p-3">Candidate ID</th>
+              <th class="p-3">Recruiter</th>
+              <th class="p-3">Overall Status</th>
+              <th class="p-3">Action</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <!-- Rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Candidate Profile Overlay -->
+    <div id="profile-view" class="bg-white h-full rounded shadow p-8 hidden absolute inset-8 z-10 border-t-4 border-emicon-orange overflow-auto">
+      <button onclick="closeProfile()" class="absolute top-4 right-8 text-emicon-navy hover:text-emicon-orange font-bold text-xl">✕ Close</button>
+      
+      <div class="border-b pb-4 mb-6">
+        <h2 class="text-3xl text-emicon-navy font-bold">Candidate Verification Profile</h2>
+      </div>
+
+      <form id="profile-form" class="grid grid-cols-2 gap-6" onsubmit="saveData(event)">
+        <input type="hidden" id="bgvId">
+        
+        <!-- Read Only Data from Workday -->
+        <div><label class="font-bold text-emicon-navy">Candidate ID</label><input type="text" id="candId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
+        <div><label class="font-bold text-emicon-navy">Applicant ID</label><input type="text" id="appId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
+        <div><label class="font-bold text-emicon-navy">Job Requisition ID</label><input type="text" id="reqId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
+        <div><label class="font-bold text-emicon-navy">Vendor ID</label><input type="text" id="venId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
+
+        <!-- Editable BGV Statuses -->
+        <div>
+          <label class="font-bold text-emicon-orange">Criminal Verification</label>
+          <select id="crimStatus" class="w-full border-2 border-gray-300 p-2 rounded focus:border-emicon-orange outline-none">
+            <option value="Pending">Pending</option><option value="Clear">Clear</option><option value="Discrepancy">Discrepancy</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold text-emicon-orange">Education Verification</label>
+          <select id="eduStatus" class="w-full border-2 border-gray-300 p-2 rounded focus:border-emicon-orange outline-none">
+            <option value="Pending">Pending</option><option value="Clear">Clear</option><option value="Discrepancy">Discrepancy</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold text-emicon-orange">Address Verification</label>
+          <select id="addStatus" class="w-full border-2 border-gray-300 p-2 rounded focus:border-emicon-orange outline-none">
+            <option value="Pending">Pending</option><option value="Clear">Clear</option><option value="Discrepancy">Discrepancy</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold text-emicon-navy text-lg">Overall Status</label>
+          <select id="overStatus" class="w-full border-2 border-emicon-navy p-2 rounded outline-none font-bold">
+            <option value="Initiated">Initiated</option><option value="In Progress">In Progress</option><option value="Clear">Clear</option><option value="Discrepancy">Discrepancy</option>
+          </select>
+        </div>
+
+        <div class="col-span-2 mt-4">
+          <button type="submit" class="bg-emicon-navy text-white px-6 py-3 rounded shadow hover:opacity-90 font-bold w-full transition">
+            Save & POST Data back to Extend App
+          </button>
+        </div>
+      </form>
+    </div>
+
+  </main>
+
+  <script>
+    let dbData = [];
+    let currentPage = 'Home';
+
+    // 1. Fetch Data
+    async function loadData() {
+      const res = await fetch('/api/candidates');
+      dbData = await res.json();
+      renderTable();
+    }
+
+    // 2. Navigation
+    function switchPage(page) {
+      currentPage = page;
+      document.getElementById('page-title').innerText = page + " Page";
+      document.getElementById('profile-view').classList.add('hidden');
+      
+      document.querySelectorAll('#nav-menu button').forEach(btn => {
+        if(btn.dataset.page === page) {
+          btn.classList.add('bg-emicon-orange', 'font-bold');
+        } else {
+          btn.classList.remove('bg-emicon-orange', 'font-bold');
+        }
+      });
+      renderTable();
+    }
+
+    // 3. Render Table based on Page Filters[cite: 2]
+    function renderTable() {
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      const filtered = dbData.filter(c => {
+        if (currentPage === 'Home') return c.overallStatus === 'Initiated' || c.overallStatus === 'In Progress';
+        if (currentPage === 'Criminal') return c.criminalStatus !== 'Pending';
+        if (currentPage === 'Education') return c.educationStatus !== 'Pending';
+        if (currentPage === 'Address') return c.addressStatus !== 'Pending';
+        if (currentPage === 'Status') return c.overallStatus === 'Clear' || c.overallStatus === 'Discrepancy';
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No candidates available.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(c => {
+        tbody.innerHTML += `
+          <tr class="border-b hover:bg-gray-50 transition">
+            <td class="p-3 font-semibold">${c.bgvTransactionId}</td>
+            <td class="p-3">${c.candidateId}</td>
+            <td class="p-3">${c.recruiterName}</td>
+            <td class="p-3 font-bold text-emicon-navy">${c.overallStatus}</td>
+            <td class="p-3"><button onclick="openProfile('${c.bgvTransactionId}')" class="bg-emicon-orange text-white px-4 py-1 rounded shadow hover:opacity-90">Review Profile</button></td>
+          </tr>
+        `;
+      });
+    }
+
+    // 4. Open/Close Profile
+    function openProfile(id) {
+      const c = dbData.find(x => x.bgvTransactionId === id);
+      document.getElementById('bgvId').value = c.bgvTransactionId;
+      document.getElementById('candId').value = c.candidateId;
+      document.getElementById('appId').value = c.applicantId;
+      document.getElementById('reqId').value = c.jobRequisitionId;
+      document.getElementById('venId').value = c.vendorId;
+      document.getElementById('crimStatus').value = c.criminalStatus;
+      document.getElementById('eduStatus').value = c.educationStatus;
+      document.getElementById('addStatus').value = c.addressStatus;
+      document.getElementById('overStatus').value = c.overallStatus;
+      document.getElementById('profile-view').classList.remove('hidden');
+    }
+
+    function closeProfile() {
+      document.getElementById('profile-view').classList.add('hidden');
+    }
+
+    // 5. Update & POST
+    async function saveData(e) {
+      e.preventDefault();
+      const id = document.getElementById('bgvId').value;
+      const payload = {
+        criminalStatus: document.getElementById('crimStatus').value,
+        educationStatus: document.getElementById('eduStatus').value,
+        addressStatus: document.getElementById('addStatus').value,
+        overallStatus: document.getElementById('overStatus').value
+      };
+
+      await fetch(`/api/candidates/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      alert('Successfully updated and POSTed status to Workday Extend.');
+      closeProfile();
+      loadData();
+    }
+
+    // Initialize
+    window.onload = loadData;
+  </script>
+</body>
+</html>
