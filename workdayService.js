@@ -29,22 +29,23 @@ async function getWorkdayAccessToken() {
 }
 
 /**
- * Push the updated BGV status back to AN Company's Workday tenant
+ * Push the updated BGV status to the Workday Orchestration endpoint
  */
 async function updateCandidateBGVStatus(candidateId, updatedFields) {
     try {
         const accessToken = await getWorkdayAccessToken();
         
-        // NOTE: Modify the final part of this URL based on the exact REST endpoint required by your Workday configuration
-        const workdayEndpoint = `${process.env.WD_API_BASE}/candidates/${candidateId}/backgroundCheckEvents`;
+        // Use the exact Orchestration Launch/Trigger URL provided in your environment variables
+        const orchestrationEndpoint = process.env.WD_API_BASE;
 
-        const response = await fetch(workdayEndpoint, {
-            method: 'PATCH', 
+        const response = await fetch(orchestrationEndpoint, {
+            method: 'POST', // Orchestrations are triggered via POST
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+                candidateId: candidateId,
                 overallStatus: updatedFields.overallStatus,
                 criminalStatus: updatedFields.criminalStatus,
                 educationStatus: updatedFields.educationStatus,
@@ -55,12 +56,12 @@ async function updateCandidateBGVStatus(candidateId, updatedFields) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Workday API Update Failed: ${response.status} - ${errorText}`);
+            throw new Error(`Workday Orchestration Launch Failed: ${response.status} - ${errorText}`);
         }
 
         return await response.json();
     } catch (error) {
-        console.error("Error pushing to Workday:", error);
+        console.error("Error pushing to Workday Orchestration:", error);
         throw error; 
     }
 }
