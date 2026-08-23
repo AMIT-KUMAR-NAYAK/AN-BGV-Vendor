@@ -114,7 +114,7 @@
 
         <div class="col-span-2 mt-4">
           <button type="submit" class="bg-emicon-navy text-white px-6 py-3 rounded shadow hover:opacity-90 font-bold w-full transition">
-            Save Verification & Mark as Submitted
+            Save Verification & Sync to Workday
           </button>
         </div>
       </form>
@@ -238,15 +238,19 @@
           body: JSON.stringify(payload)
         });
 
+        const resData = await res.json(); // Safely parse the backend response
+
         if (res.ok) {
-          alert('Verification saved and marked ready for Workday Extend polling.');
+          alert(resData.message || 'Verification successfully synced to Workday!');
           closeProfile();
           loadData();
         } else {
-          alert('Failed to update candidate record.');
+          // If Workday throws a 500 error, this explicitly shows why
+          alert(`Error: ${resData.error || 'Failed to update candidate record.'}\nDetails: ${resData.details || ''}`);
         }
       } catch (err) {
         console.error('Error updating candidate:', err);
+        alert('A critical error occurred while attempting to contact the server.');
       }
     }
 
