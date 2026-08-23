@@ -1,14 +1,13 @@
 // workdayService.js
 
 /**
- * Securely fetch a temporary Bearer Access Token from Workday
+ * Securely fetch a temporary Bearer Access Token using Client Credentials
  */
 async function getWorkdayAccessToken() {
     const credentials = Buffer.from(`${process.env.WD_CLIENT_ID}:${process.env.WD_CLIENT_SECRET}`).toString('base64');
     
     const params = new URLSearchParams();
-    params.append('grant_type', 'refresh_token');
-    params.append('refresh_token', process.env.WD_REFRESH_TOKEN);
+    params.append('grant_type', 'client_credentials'); // Switched to client_credentials grant
 
     const response = await fetch(process.env.WD_TOKEN_ENDPOINT, {
         method: 'POST',
@@ -35,11 +34,10 @@ async function updateCandidateBGVStatus(candidateId, updatedFields) {
     try {
         const accessToken = await getWorkdayAccessToken();
         
-        // Use the exact Orchestration Launch/Trigger URL provided in your environment variables
         const orchestrationEndpoint = process.env.WD_API_BASE;
 
         const response = await fetch(orchestrationEndpoint, {
-            method: 'POST', // Orchestrations are triggered via POST
+            method: 'POST', 
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
