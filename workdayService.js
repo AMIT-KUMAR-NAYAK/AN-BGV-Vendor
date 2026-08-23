@@ -4,18 +4,28 @@
  * Securely fetch a temporary Bearer Access Token using Client Credentials
  */
 async function getWorkdayAccessToken() {
-    const credentials = Buffer.from(`${process.env.WD_CLIENT_ID}:${process.env.WD_CLIENT_SECRET}`).toString('base64');
-    
-    const params = new URLSearchParams();
-    params.append('grant_type', 'client_credentials'); // Switched to client_credentials grant
+    const clientId = process.env.WD_CLIENT_ID;
+    const clientSecret = process.env.WD_CLIENT_SECRET;
+    const tokenEndpoint = process.env.WD_TOKEN_ENDPOINT;
 
-    const response = await fetch(process.env.WD_TOKEN_ENDPOINT, {
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    
+    // Explicitly format as standard URL-encoded string to avoid 400 Invalid Request
+    const details = {
+        grant_type: 'client_credentials'
+    };
+    
+    const formBody = Object.keys(details)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(details[key]))
+        .join('&');
+
+    const response = await fetch(tokenEndpoint, {
         method: 'POST',
         headers: {
             'Authorization': `Basic ${credentials}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
         },
-        body: params
+        body: formBody
     });
 
     if (!response.ok) {
