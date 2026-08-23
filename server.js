@@ -1,10 +1,12 @@
+require('dotenv').config(); // Load environment variables for local testing
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const { updateCandidateBGVStatus } = require('./workdayService'); // Import the new service
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Better for Render deployment
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -36,23 +38,21 @@ let candidates = [
 // API ENDPOINTS
 // ==========================================
 
-// 1. GET: Retrieve ALL candidate records (http://localhost:3000/api/candidates)
+// 1. GET: Retrieve ALL candidate records
 app.get('/api/candidates', (req, res) => {
   res.status(200).json(candidates);
 });
 
-// 2. GET: Retrieve ONLY candidates whose status was modified & submitted (http://localhost:3000/api/candidates/submitted)
+// 2. GET: Retrieve ONLY candidates whose status was modified & submitted
 app.get('/api/candidates/submitted', (req, res) => {
   const submittedCandidates = candidates.filter(c => c.isSubmitted === true);
   res.status(200).json(submittedCandidates);
 });
 
-// 3. POST: Ingest new candidate data from Extend/Orchestration (http://localhost:3000/api/candidates)
+// 3. POST: Ingest new candidate data from Extend/Orchestration
 app.post('/api/candidates', (req, res) => {
-  // Automatically detect if Workday sent an array [ {...} ] or a single object { ... }
   const payloadItems = Array.isArray(req.body) ? req.body : [req.body];
   
-  // STRICT VALIDATION: Reject the request if 'bgvTransactionId' is provided anywhere in the payload
   const hasRestrictedField = payloadItems.some(item => item.bgvTransactionId !== undefined);
   
   if (hasRestrictedField) {
@@ -64,12 +64,10 @@ app.post('/api/candidates', (req, res) => {
   const ingestedCandidates = [];
 
   payloadItems.forEach(body => {
-    // Generate a guaranteed unique ID (e.g., BGV-2026-0002)
     const uniqueBvgId = `BGV-2026-${String(transactionCounter++).padStart(4, '0')}`;
 
-    // Dynamically map incoming keys whether passed as formatted labels or camelCase
     const newCandidate = {
-      bgvTransactionId: uniqueBvgId, // Safely assigned internally
+      bgvTransactionId: uniqueBvgId,
       candidateId: body["Candidate ID"] || body.candidateId || "N/A",
       name: body["Name"] || body.name || "Unknown Candidate",
       applicantId: body["Applicant ID"] || body.applicantId || `APP-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -90,28 +88,45 @@ app.post('/api/candidates', (req, res) => {
 
   res.status(201).json({
     message: `Candidate successfully ingested into BGV system. Processed ${ingestedCandidates.length} record(s).`,
-    // If it was a single item, return a single object. If a batch, return the array.
     data: ingestedCandidates.length === 1 ? ingestedCandidates[0] : ingestedCandidates
   });
 });
 
-// 4. PUT: Update candidate verification data by Transaction ID or Candidate ID (http://localhost:3000/api/candidates/:id)
-app.put('/api/candidates/:id', (req, res) => {
+// 4. PUT: Update candidate verification data and Push to Workday
+app.put('/api/candidates/:id', async (req, res) => {
   const { id } = req.params;
   const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
 
   if (index !== -1) {
+    // Update local database first
     candidates[index] = {
       ...candidates[index],
       ...req.body,
-      isSubmitted: true, // Flag as submitted for polling queries
+      isSubmitted: true, 
       updatedAt: new Date().toISOString()
     };
 
-    res.status(200).json({
-      message: "Candidate verification status updated and marked as submitted.",
-      data: candidates[index]
-    });
+    try {
+      const workdayCandidateId = candidates[index].candidateId;
+      
+      // Trigger the secure Workday push
+      await updateCandidateBGVStatus(workdayCandidateId, req.body);
+      console.log(`Successfully synced candidate ${workdayCandidateId} with Workday.`);
+
+      res.status(200).json({
+        message: "Candidate verification status updated locally and successfully synced back to Workday.",
+        data: candidates[index]
+      });
+
+    } catch (error) {
+      console.error("Workday sync error:", error);
+      // Let the frontend know the local update worked, but Workday failed
+      res.status(500).json({ 
+        error: "Local update succeeded, but the sync to Workday failed.",
+        details: error.message 
+      });
+    }
+
   } else {
     res.status(404).json({ error: "Candidate record not found." });
   }
