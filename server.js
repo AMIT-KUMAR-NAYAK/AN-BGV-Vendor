@@ -1,17 +1,17 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-const { updateCandidateBGVStatus } = require('./workdayService'); // Import the new service
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Better for Render deployment
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Auto-incrementing counter to guarantee unique Transaction IDs
+// Auto-incrementing counter for unique Transaction IDs
 let transactionCounter = 2; 
 
 // In-memory Database simulating candidate records
@@ -37,18 +37,18 @@ let candidates = [
 // API ENDPOINTS
 // ==========================================
 
-// 1. GET: Retrieve ALL candidate records
+// 1. GET: Provide All Candidate Data with Status[cite: 1]
 app.get('/api/candidates', (req, res) => {
   res.status(200).json(candidates);
 });
 
-// 2. GET: Retrieve ONLY candidates whose status was modified & submitted
+// 2. GET: Provide candidate data whose BGV has been submitted (stored separately/filtered)[cite: 1]
 app.get('/api/candidates/submitted', (req, res) => {
   const submittedCandidates = candidates.filter(c => c.isSubmitted === true);
   res.status(200).json(submittedCandidates);
 });
 
-// 3. POST: Ingest new candidate data from Extend/Orchestration
+// 3. POST: Takes WD response / candidate data for Candidate Data[cite: 1]
 app.post('/api/candidates', (req, res) => {
   const payloadItems = Array.isArray(req.body) ? req.body : [req.body];
   
@@ -91,13 +91,12 @@ app.post('/api/candidates', (req, res) => {
   });
 });
 
-// 4. PUT: Update candidate verification data and Push to Workday
-app.put('/api/candidates/:id', async (req, res) => {
+// 4. PUT: Local update when vendor completes BGV review and marks as submitted
+app.put('/api/candidates/:id', (req, res) => {
   const { id } = req.params;
   const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
 
   if (index !== -1) {
-    // Update local database first
     candidates[index] = {
       ...candidates[index],
       ...req.body,
@@ -105,27 +104,10 @@ app.put('/api/candidates/:id', async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    try {
-      const workdayCandidateId = candidates[index].candidateId;
-      
-      // Trigger the secure Workday push
-      await updateCandidateBGVStatus(workdayCandidateId, req.body);
-      console.log(`Successfully synced candidate ${workdayCandidateId} with Workday.`);
-
-      res.status(200).json({
-        message: "Candidate verification status updated locally and successfully synced back to Workday.",
-        data: candidates[index]
-      });
-
-    } catch (error) {
-      console.error("Workday sync error:", error);
-      // Let the frontend know the local update worked, but Workday failed
-      res.status(500).json({ 
-        error: "Local update succeeded, but the sync to Workday failed.",
-        details: error.message 
-      });
-    }
-
+    res.status(200).json({
+      message: "Candidate verification status updated successfully locally.",
+      data: candidates[index]
+    });
   } else {
     res.status(404).json({ error: "Candidate record not found." });
   }
