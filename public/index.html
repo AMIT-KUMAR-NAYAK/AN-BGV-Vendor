@@ -114,7 +114,7 @@
 
         <div class="col-span-2 mt-4">
           <button type="submit" class="bg-emicon-navy text-white px-6 py-3 rounded shadow hover:opacity-90 font-bold w-full transition">
-            Save Verification & Sync to Workday
+            Save Verification & Mark as Submitted
           </button>
         </div>
       </form>
@@ -238,15 +238,14 @@
           body: JSON.stringify(payload)
         });
 
-        const resData = await res.json(); // Safely parse the backend response
+        const resData = await res.json(); 
 
         if (res.ok) {
-          alert(resData.message || 'Verification successfully synced to Workday!');
+          alert(resData.message || 'Verification updated successfully.');
           closeProfile();
           loadData();
         } else {
-          // If Workday throws a 500 error, this explicitly shows why
-          alert(`Error: ${resData.error || 'Failed to update candidate record.'}\nDetails: ${resData.details || ''}`);
+          alert(`Error: ${resData.error || 'Failed to update candidate record.'}`);
         }
       } catch (err) {
         console.error('Error updating candidate:', err);
