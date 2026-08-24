@@ -245,7 +245,7 @@
           closeProfile();
           loadData();
         } else {
-          alert(`Error: ${resData.error || 'Failed to update candidate record.'}`);
+          alert(`Error: ${resData.error}\nDetails: ${resData.details}`);
         }
       } catch (err) {
         console.error('Error updating candidate:', err);
