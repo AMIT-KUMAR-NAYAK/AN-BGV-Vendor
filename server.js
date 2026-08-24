@@ -14,6 +14,49 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Auto-incrementing counter for unique Transaction IDs
 let transactionCounter = 2; 
 
+// Add this to the top of server.js
+const { triggerOrchestration } = require('./workdayService');
+
+// Update your PUT endpoint (Replacing lines 103-120)
+app.put('/api/candidates/:id', async (req, res) => {
+  const { id } = req.params;
+  const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
+
+  if (index !== -1) {
+    // 1. Update local database first
+    candidates[index] = {
+      ...candidates[index],
+      ...req.body,
+      isSubmitted: true, 
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      // 2. Trigger the Orchestration
+      const payloadForWorkday = {
+          candidateId: candidates[index].candidateId,
+          vendorId: candidates[index].vendorId,
+          ...req.body // Contains the statuses (Clear, Pending, etc.)
+      };
+      
+      await triggerOrchestration(payloadForWorkday);
+      
+      res.status(200).json({
+        message: "Verification updated locally and successfully launched Workday Orchestration.",
+        data: candidates[index]
+      });
+    } catch (error) {
+        // If Orchestration fails, the frontend will display the exact reason
+        res.status(500).json({ 
+            error: "Local update succeeded, but Orchestration launch failed.",
+            details: error.message 
+        });
+    }
+  } else {
+    res.status(404).json({ error: "Candidate record not found." });
+  }
+});
+
 // In-memory Database simulating candidate records
 let candidates = [
   {
