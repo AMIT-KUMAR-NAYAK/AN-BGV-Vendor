@@ -1,25 +1,21 @@
 // workdayService.js
 
-/**
- * Push the updated BGV status directly to the Workday Orchestration 
- * using the Extend App API Client credentials.
- */
 async function triggerOrchestration(payload) {
     try {
-        // 1. Get the Extend App Bearer Token
+        // 1. Get the Bearer Token using the Refresh Token flow
         const tokenResponse = await fetch(process.env.WD_EXTEND_TOKEN_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                // Basic Auth encoding of your Extend App Client ID and Secret
                 'Authorization': 'Basic ' + Buffer.from(`${process.env.WD_EXTEND_CLIENT_ID}:${process.env.WD_EXTEND_CLIENT_SECRET}`).toString('base64')
             },
-            body: 'grant_type=client_credentials'
+            // THE FIX: Switch to refresh_token and pass the token variable
+            body: `grant_type=refresh_token&refresh_token=${process.env.WD_REFRESH_TOKEN}`
         });
 
         if (!tokenResponse.ok) {
             const err = await tokenResponse.text();
-            throw new Error(`Extend Token Auth Failed: ${tokenResponse.status} - ${err}`);
+            throw new Error(`Token Auth Failed: ${tokenResponse.status} - ${err}`);
         }
 
         const tokenData = await tokenResponse.json();
