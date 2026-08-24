@@ -1,20 +1,23 @@
 // workdayService.js
 
-
 /**
- * Generates an OAuth token using Workday Extend Client Credentials 
+ * Generates an OAuth token using Workday Core Tenant Refresh Token 
  * and pushes the BGV status payload directly to the Workday Orchestration.
  */
 async function triggerOrchestration(payload) {
     try {
-        // 1. Request the Bearer Token from the Workday Extend Gateway
+        // 1. Perfectly encode the payload for Workday using URLSearchParams
+        const params = new URLSearchParams();
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', process.env.WD_REFRESH_TOKEN);
+        params.append('client_id', process.env.WD_EXTEND_CLIENT_ID);
+        params.append('client_secret', process.env.WD_EXTEND_CLIENT_SECRET);
+
+        // 2. Request the Bearer Token from the Workday Core Tenant
+        // (URLSearchParams automatically sets the 'application/x-www-form-urlencoded' header)
         const tokenResponse = await fetch(process.env.WD_EXTEND_TOKEN_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': 'Basic ' + Buffer.from(`${process.env.WD_EXTEND_CLIENT_ID}:${process.env.WD_EXTEND_CLIENT_SECRET}`).toString('base64')
-            },
-            body: 'grant_type=client_credentials'
+            body: params
         });
 
         if (!tokenResponse.ok) {
@@ -25,7 +28,7 @@ async function triggerOrchestration(payload) {
         const tokenData = await tokenResponse.json();
         const accessToken = tokenData.access_token;
 
-        // 2. POST the payload to the Orchestration Launch URL
+        // 3. POST the payload to the Orchestration Launch URL
         const orchResponse = await fetch(process.env.WD_ORCH_LAUNCH_URL, {
             method: 'POST',
             headers: {
