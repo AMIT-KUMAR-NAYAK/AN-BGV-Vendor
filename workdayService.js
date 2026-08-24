@@ -1,21 +1,25 @@
 // workdayService.js
+const fetch = require('node-fetch');
 
+/**
+ * Generates an OAuth token using Workday Extend Client Credentials 
+ * and pushes the BGV status payload directly to the Workday Orchestration.
+ */
 async function triggerOrchestration(payload) {
     try {
-        // 1. Get the Bearer Token using the Refresh Token flow
+        // 1. Request the Bearer Token from the Workday Extend Gateway
         const tokenResponse = await fetch(process.env.WD_EXTEND_TOKEN_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Authorization': 'Basic ' + Buffer.from(`${process.env.WD_EXTEND_CLIENT_ID}:${process.env.WD_EXTEND_CLIENT_SECRET}`).toString('base64')
             },
-            // THE FIX: Switch to refresh_token and pass the token variable
-            body: `grant_type=refresh_token&refresh_token=${process.env.WD_REFRESH_TOKEN}`
+            body: 'grant_type=client_credentials'
         });
 
         if (!tokenResponse.ok) {
             const err = await tokenResponse.text();
-            throw new Error(`Token Auth Failed: ${tokenResponse.status} - ${err}`);
+            throw new Error(`Extend Token Auth Failed: ${tokenResponse.status} - ${err}`);
         }
 
         const tokenData = await tokenResponse.json();
