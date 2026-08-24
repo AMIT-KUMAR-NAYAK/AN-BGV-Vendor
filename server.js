@@ -120,8 +120,7 @@ app.post('/api/candidates', (req, res) => {
       criminalStatus: body.criminalStatus || "Pending",
       educationStatus: body.educationStatus || "Pending",
       addressStatus: body.addressStatus || "Pending",
-      isSubmitted: false,
-      updatedAt: new Date().toISOString()
+      isSubmitted: false
     };
 
     candidates.push(newCandidate);
