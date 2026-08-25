@@ -16,7 +16,7 @@
 <body class="bg-gray-100 flex h-screen overflow-hidden font-sans">
 
   <!-- Sidebar Navigation -->
-  <aside class="w-64 bg-emicon-navy text-white flex flex-col shadow-xl">
+  <aside class="w-64 bg-emicon-navy text-white flex flex-col shadow-xl z-20">
     <div class="p-6 border-b border-emicon-orange">
       <h1 class="text-2xl font-bold text-emicon-orange text-center">Emicon Verification</h1>
     </div>
@@ -37,7 +37,7 @@
       <div class="p-6 border-b flex justify-between items-center">
         <h2 id="page-title" class="text-2xl text-emicon-navy font-bold">All / In Progress Candidates</h2>
         <div class="space-x-4">
-          <!-- New Export Button -->
+          <!-- Export Button -->
           <button id="export-btn" onclick="exportAndClear()" class="hidden bg-emicon-orange hover:opacity-90 text-white text-sm font-semibold px-4 py-2 rounded shadow transition">
             📥 Export & Clear Submitted
           </button>
@@ -49,11 +49,13 @@
       <div class="p-6 flex-1 overflow-auto">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="bg-emicon-navy text-white">
+            <tr class="bg-emicon-navy text-white text-sm">
               <th class="p-3">BGV Transaction ID</th>
               <th class="p-3">Candidate ID</th>
               <th class="p-3">Candidate Name</th>
-              <th class="p-3">Recruiter</th>
+              <th class="p-3">Crim.</th>
+              <th class="p-3">Edu.</th>
+              <th class="p-3">Addr.</th>
               <th class="p-3">Overall Status</th>
               <th class="p-3">Action</th>
             </tr>
@@ -66,14 +68,14 @@
     </div>
 
     <!-- Candidate Profile Overlay -->
-    <div id="profile-view" class="bg-white h-full rounded shadow p-8 hidden absolute inset-8 z-10 border-t-4 border-emicon-orange overflow-auto">
+    <div id="profile-view" class="bg-white h-full rounded shadow p-8 hidden absolute inset-8 z-30 border-t-4 border-emicon-orange overflow-auto">
       <button onclick="closeProfile()" class="absolute top-4 right-8 text-emicon-navy hover:text-emicon-orange font-bold text-xl">✕ Close</button>
       
       <div class="border-b pb-4 mb-6">
         <h2 class="text-3xl text-emicon-navy font-bold">Candidate Verification Profile</h2>
       </div>
 
-      <form id="profile-form" class="grid grid-cols-2 gap-6" onsubmit="saveData(event)">
+      <form id="profile-form" class="grid grid-cols-2 gap-6">
         <input type="hidden" id="bgvId">
         
         <div><label class="font-bold text-emicon-navy">Candidate ID</label><input type="text" id="candId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
@@ -116,9 +118,13 @@
           </select>
         </div>
 
-        <div class="col-span-2 mt-4">
-          <button type="submit" class="bg-emicon-navy text-white px-6 py-3 rounded shadow hover:opacity-90 font-bold w-full transition">
-            Save Verification & Mark as Submitted
+        <!-- Split Action Buttons -->
+        <div class="col-span-2 mt-4 flex space-x-4">
+          <button type="button" onclick="saveData(false)" class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-3 rounded shadow font-bold w-1/2 transition">
+            💾 Save Progress
+          </button>
+          <button type="button" onclick="saveData(true)" class="bg-emicon-navy hover:opacity-90 text-white px-6 py-3 rounded shadow font-bold w-1/2 transition">
+            🚀 Mark as Submitted
           </button>
         </div>
       </form>
@@ -179,13 +185,13 @@
       tbody.innerHTML = '';
 
       const filtered = dbData.filter(c => {
-        // 1. If we are on the 'Status' tab, ONLY show submitted candidates
+        // Status tab exclusively shows submitted records
         if (currentPage === 'Status') return c.isSubmitted === true;
 
-        // 2. For ALL OTHER tabs, completely hide the candidate if they are submitted
+        // All other tabs hide submitted records
         if (c.isSubmitted === true) return false;
 
-        // 3. Normal tab logic for candidates that are NOT submitted yet
+        // Specific progress tab filtering
         if (currentPage === 'Home') return true; 
         if (currentPage === 'Criminal') return c.criminalStatus !== 'Pending';
         if (currentPage === 'Education') return c.educationStatus !== 'Pending';
@@ -195,21 +201,28 @@
       });
 
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">No candidates found for this category.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-500">No candidates found for this category.</td></tr>';
         return;
       }
 
       filtered.forEach(c => {
+        // Color coding for quick visual parsing
+        const crimColor = c.criminalStatus === 'Clear' ? 'text-green-600' : (c.criminalStatus === 'Pending' ? 'text-gray-400' : 'text-red-600');
+        const eduColor = c.educationStatus === 'Clear' ? 'text-green-600' : (c.educationStatus === 'Pending' ? 'text-gray-400' : 'text-red-600');
+        const addColor = c.addressStatus === 'Clear' ? 'text-green-600' : (c.addressStatus === 'Pending' ? 'text-gray-400' : 'text-red-600');
+
         tbody.innerHTML += `
-          <tr class="border-b hover:bg-gray-50 transition">
+          <tr class="border-b hover:bg-gray-50 transition text-sm">
             <td class="p-3 font-semibold">${c.bgvTransactionId}</td>
             <td class="p-3">${c.candidateId}</td>
             <td class="p-3 font-medium">${c.name || 'N/A'}</td>
-            <td class="p-3">${c.recruiterName}</td>
+            <td class="p-3 font-bold ${crimColor}">${c.criminalStatus}</td>
+            <td class="p-3 font-bold ${eduColor}">${c.educationStatus}</td>
+            <td class="p-3 font-bold ${addColor}">${c.addressStatus}</td>
             <td class="p-3 font-bold text-emicon-navy">${c.overallStatus}</td>
             <td class="p-3">
-              <button onclick="openProfile('${c.bgvTransactionId}')" class="bg-emicon-orange text-white px-4 py-1 rounded shadow hover:opacity-90">
-                Review Profile
+              <button onclick="openProfile('${c.bgvTransactionId}')" class="bg-emicon-orange text-white px-3 py-1 rounded shadow hover:opacity-90">
+                Review
               </button>
             </td>
           </tr>
@@ -240,14 +253,14 @@
     }
 
     // 5. Update Record via PUT
-    async function saveData(e) {
-      e.preventDefault();
+    async function saveData(isSubmitClicked) {
       const id = document.getElementById('bgvId').value;
       const payload = {
         criminalStatus: document.getElementById('crimStatus').value,
         educationStatus: document.getElementById('eduStatus').value,
         addressStatus: document.getElementById('addStatus').value,
-        overallStatus: document.getElementById('overStatus').value
+        overallStatus: document.getElementById('overStatus').value,
+        isSubmitted: isSubmitClicked
       };
 
       try {
@@ -260,7 +273,6 @@
         const resData = await res.json(); 
 
         if (res.ok) {
-          alert(resData.message);
           closeProfile();
           loadData(); // Re-sync table data
         } else {
