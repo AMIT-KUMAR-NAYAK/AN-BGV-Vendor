@@ -179,11 +179,18 @@
       tbody.innerHTML = '';
 
       const filtered = dbData.filter(c => {
-        if (currentPage === 'Home') return true;
+        // 1. If we are on the 'Status' tab, ONLY show submitted candidates
+        if (currentPage === 'Status') return c.isSubmitted === true;
+
+        // 2. For ALL OTHER tabs, completely hide the candidate if they are submitted
+        if (c.isSubmitted === true) return false;
+
+        // 3. Normal tab logic for candidates that are NOT submitted yet
+        if (currentPage === 'Home') return true; 
         if (currentPage === 'Criminal') return c.criminalStatus !== 'Pending';
         if (currentPage === 'Education') return c.educationStatus !== 'Pending';
         if (currentPage === 'Address') return c.addressStatus !== 'Pending';
-        if (currentPage === 'Status') return c.isSubmitted === true;
+        
         return true;
       });
 
