@@ -43,17 +43,12 @@ app.get('/api/candidates', (req, res) => {
 
 // 2. GET (DEQUEUE): Provide submitted candidates and remove them from memory
 app.get('/api/candidates/submitted', (req, res) => {
-  // Capture the submitted candidates
   const submittedCandidates = candidates.filter(c => c.isSubmitted === true);
-  
-  // Purge them from the in-memory database
   candidates = candidates.filter(c => c.isSubmitted === false);
-  
-  // Return the captured payload
   res.status(200).json(submittedCandidates);
 });
 
-// 3. POST: Accept candidate data (e.g. from an Orchestration) and load into BGV
+// 3. POST: Accept candidate data and load into BGV
 app.post('/api/candidates', (req, res) => {
   const payloadItems = Array.isArray(req.body) ? req.body : [req.body];
   const hasRestrictedField = payloadItems.some(item => item.bgvTransactionId !== undefined);
@@ -95,22 +90,21 @@ app.post('/api/candidates', (req, res) => {
   });
 });
 
-// 4. PUT: Local update when vendor completes BGV review and marks as submitted
+// 4. PUT: Local update for BGV review
 app.put('/api/candidates/:id', (req, res) => {
   const { id } = req.params;
   const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
 
   if (index !== -1) {
-    // Update local database and mark as submitted
+    // Update local database (safely merges the isSubmitted boolean from the frontend payload)
     candidates[index] = {
       ...candidates[index],
       ...req.body,
-      isSubmitted: true, 
       updatedAt: new Date().toISOString()
     };
 
     res.status(200).json({
-      message: "Candidate verification status updated and queued for pickup.",
+      message: req.body.isSubmitted ? "Candidate marked as submitted and queued for pickup." : "Candidate verification progress saved.",
       data: candidates[index]
     });
   } else {
