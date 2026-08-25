@@ -36,9 +36,15 @@
     <div id="table-view" class="bg-white h-full rounded shadow flex flex-col">
       <div class="p-6 border-b flex justify-between items-center">
         <h2 id="page-title" class="text-2xl text-emicon-navy font-bold">All / In Progress Candidates</h2>
-        <button onclick="loadData()" class="bg-gray-100 hover:bg-gray-200 text-emicon-navy text-sm font-semibold px-4 py-2 rounded border">
-          ↻ Refresh Data
-        </button>
+        <div class="space-x-4">
+          <!-- New Export Button -->
+          <button id="export-btn" onclick="exportAndClear()" class="hidden bg-emicon-orange hover:opacity-90 text-white text-sm font-semibold px-4 py-2 rounded shadow transition">
+            📥 Export & Clear Submitted
+          </button>
+          <button onclick="loadData()" class="bg-gray-100 hover:bg-gray-200 text-emicon-navy text-sm font-semibold px-4 py-2 rounded border shadow">
+            ↻ Refresh Data
+          </button>
+        </div>
       </div>
       <div class="p-6 flex-1 overflow-auto">
         <table class="w-full text-left border-collapse">
@@ -70,14 +76,12 @@
       <form id="profile-form" class="grid grid-cols-2 gap-6" onsubmit="saveData(event)">
         <input type="hidden" id="bgvId">
         
-        <!-- Read-Only Ingested Details -->
         <div><label class="font-bold text-emicon-navy">Candidate ID</label><input type="text" id="candId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
         <div><label class="font-bold text-emicon-navy">Candidate Name</label><input type="text" id="candName" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
         <div><label class="font-bold text-emicon-navy">Applicant ID</label><input type="text" id="appId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
         <div><label class="font-bold text-emicon-navy">Job Requisition ID</label><input type="text" id="reqId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
         <div class="col-span-2"><label class="font-bold text-emicon-navy">Vendor ID</label><input type="text" id="venId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
 
-        <!-- Editable BGV Verification Fields -->
         <div>
           <label class="font-bold text-emicon-orange">Criminal Verification</label>
           <select id="crimStatus" class="w-full border-2 border-gray-300 p-2 rounded focus:border-emicon-orange outline-none">
@@ -150,6 +154,14 @@
         'Status': 'Completed & Submitted Candidates'
       };
       document.getElementById('page-title').innerText = titles[page] || page;
+
+      // Toggle Export Button Visibility
+      const exportBtn = document.getElementById('export-btn');
+      if (page === 'Status') {
+        exportBtn.classList.remove('hidden');
+      } else {
+        exportBtn.classList.add('hidden');
+      }
 
       document.querySelectorAll('#nav-menu button').forEach(btn => {
         if (btn.dataset.page === page) {
@@ -241,15 +253,37 @@
         const resData = await res.json(); 
 
         if (res.ok) {
-          alert(resData.message || 'Verification updated successfully.');
+          alert(resData.message);
           closeProfile();
-          loadData();
+          loadData(); // Re-sync table data
         } else {
-          alert(`Error: ${resData.error}\nDetails: ${resData.details}`);
+          alert(`Error: ${resData.error}`);
         }
       } catch (err) {
         console.error('Error updating candidate:', err);
         alert('A critical error occurred while attempting to contact the server.');
+      }
+    }
+
+    // 6. Dequeue API Call (Export & Clear)
+    async function exportAndClear() {
+      try {
+        const res = await fetch('/api/candidates/submitted');
+        const dequeuedData = await res.json();
+        
+        if (dequeuedData.length === 0) {
+          alert('No submitted candidates available to clear.');
+          return;
+        }
+
+        console.log("Dequeued candidates data payload ready for Workday ingestion:", dequeuedData);
+        alert(`Successfully exported and cleared ${dequeuedData.length} candidate(s) from the queue!`);
+        
+        // Reload table to visually reflect that the candidates vanished
+        loadData();
+      } catch(err) {
+        console.error(err);
+        alert('Error clearing submitted candidates.');
       }
     }
 
