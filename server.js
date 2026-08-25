@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-const { triggerOrchestration } = require('./workdayService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 let transactionCounter = 2; 
 
+// In-memory Database simulating candidate records
 let candidates = [
   {
     bgvTransactionId: "BGV-2026-0001",
@@ -36,15 +36,24 @@ let candidates = [
 // API ENDPOINTS
 // ==========================================
 
+// 1. GET: Provide all candidate data (Submitted or not)
 app.get('/api/candidates', (req, res) => {
   res.status(200).json(candidates);
 });
 
+// 2. GET (DEQUEUE): Provide submitted candidates and remove them from memory
 app.get('/api/candidates/submitted', (req, res) => {
+  // Capture the submitted candidates
   const submittedCandidates = candidates.filter(c => c.isSubmitted === true);
+  
+  // Purge them from the in-memory database
+  candidates = candidates.filter(c => c.isSubmitted === false);
+  
+  // Return the captured payload
   res.status(200).json(submittedCandidates);
 });
 
+// 3. POST: Accept candidate data (e.g. from an Orchestration) and load into BGV
 app.post('/api/candidates', (req, res) => {
   const payloadItems = Array.isArray(req.body) ? req.body : [req.body];
   const hasRestrictedField = payloadItems.some(item => item.bgvTransactionId !== undefined);
@@ -86,12 +95,13 @@ app.post('/api/candidates', (req, res) => {
   });
 });
 
-// PUT: Local update triggers Workday Orchestration
-app.put('/api/candidates/:id', async (req, res) => {
+// 4. PUT: Local update when vendor completes BGV review and marks as submitted
+app.put('/api/candidates/:id', (req, res) => {
   const { id } = req.params;
   const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
 
   if (index !== -1) {
+    // Update local database and mark as submitted
     candidates[index] = {
       ...candidates[index],
       ...req.body,
@@ -99,25 +109,10 @@ app.put('/api/candidates/:id', async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    try {
-      const payloadForWorkday = {
-          candidateId: candidates[index].candidateId,
-          vendorId: candidates[index].vendorId,
-          ...req.body 
-      };
-      
-      await triggerOrchestration(payloadForWorkday);
-      
-      res.status(200).json({
-        message: "Verification updated locally and successfully launched Workday Orchestration.",
-        data: candidates[index]
-      });
-    } catch (error) {
-        res.status(500).json({ 
-            error: "Local update succeeded, but Orchestration launch failed.",
-            details: error.message 
-        });
-    }
+    res.status(200).json({
+      message: "Candidate verification status updated and queued for pickup.",
+      data: candidates[index]
+    });
   } else {
     res.status(404).json({ error: "Candidate record not found." });
   }
