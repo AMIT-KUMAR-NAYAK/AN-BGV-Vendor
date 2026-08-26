@@ -67,8 +67,8 @@ app.post('/api/candidates', (req, res) => {
 
     const newCandidate = {
       bgvTransactionId: uniqueBvgId,
-      // Safety net for Workday JSON casing variations
-      Bg_Event_Id: body.Bg_Event_Id || body.bgEventId || body.bg_event_id || "N/A",
+      // Aggressive safety net to catch the WID no matter what the JSON key is named
+      Bg_Event_Id: body.Bg_Event_Id || body.bgEventId || body.bg_event_id || body.eventId || body["Workday Event WID"] || "N/A",
       candidateId: body["Candidate ID"] || body.candidateId || "N/A",
       name: body["Name"] || body.name || "Unknown Candidate",
       applicantId: body["Applicant ID"] || body.applicantId || `APP-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -99,7 +99,7 @@ app.put('/api/candidates/:id', (req, res) => {
   const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
 
   if (index !== -1) {
-    // Update local database (safely merges the isSubmitted boolean from the frontend payload)
+    // Update local database (safely merges the payload with the existing record)
     candidates[index] = {
       ...candidates[index],
       ...req.body,
