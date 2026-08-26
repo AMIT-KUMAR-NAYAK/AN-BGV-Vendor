@@ -51,6 +51,7 @@
           <thead>
             <tr class="bg-emicon-navy text-white text-sm">
               <th class="p-3">BGV Transaction ID</th>
+              <th class="p-3">Workday Event WID</th> <!-- ADDED WID TO TABLE -->
               <th class="p-3">Candidate ID</th>
               <th class="p-3">Candidate Name</th>
               <th class="p-3">Crim.</th>
@@ -188,13 +189,8 @@
       tbody.innerHTML = '';
 
       const filtered = dbData.filter(c => {
-        // Status tab exclusively shows submitted records
         if (currentPage === 'Status') return c.isSubmitted === true;
-
-        // All other tabs hide submitted records
         if (c.isSubmitted === true) return false;
-
-        // Specific progress tab filtering
         if (currentPage === 'Home') return true; 
         if (currentPage === 'Criminal') return c.criminalStatus !== 'Pending';
         if (currentPage === 'Education') return c.educationStatus !== 'Pending';
@@ -204,12 +200,11 @@
       });
 
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-500">No candidates found for this category.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-500">No candidates found for this category.</td></tr>';
         return;
       }
 
       filtered.forEach(c => {
-        // Color coding for quick visual parsing
         const crimColor = c.criminalStatus === 'Clear' ? 'text-green-600' : (c.criminalStatus === 'Pending' ? 'text-gray-400' : 'text-red-600');
         const eduColor = c.educationStatus === 'Clear' ? 'text-green-600' : (c.educationStatus === 'Pending' ? 'text-gray-400' : 'text-red-600');
         const addColor = c.addressStatus === 'Clear' ? 'text-green-600' : (c.addressStatus === 'Pending' ? 'text-gray-400' : 'text-red-600');
@@ -217,6 +212,8 @@
         tbody.innerHTML += `
           <tr class="border-b hover:bg-gray-50 transition text-sm">
             <td class="p-3 font-semibold">${c.bgvTransactionId}</td>
+            <!-- ADDED WID TO TABLE VIEW TO VERIFY IT WORKS IMMEDIATELY -->
+            <td class="p-3 font-mono text-xs text-gray-500">${c.Bg_Event_Id || 'N/A'}</td>
             <td class="p-3">${c.candidateId}</td>
             <td class="p-3 font-medium">${c.name || 'N/A'}</td>
             <td class="p-3 font-bold ${crimColor}">${c.criminalStatus}</td>
@@ -259,7 +256,10 @@
     // 5. Update Record via PUT
     async function saveData(isSubmitClicked) {
       const id = document.getElementById('bgvId').value;
+      
+      // Included Bg_Event_Id in the payload to ensure it is sent back to the backend
       const payload = {
+        Bg_Event_Id: document.getElementById('bgEventId').value,
         criminalStatus: document.getElementById('crimStatus').value,
         educationStatus: document.getElementById('eduStatus').value,
         addressStatus: document.getElementById('addStatus').value,
