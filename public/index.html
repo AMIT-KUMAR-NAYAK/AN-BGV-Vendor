@@ -77,7 +77,10 @@
 
       <form id="profile-form" class="grid grid-cols-2 gap-6">
         <input type="hidden" id="bgvId">
-        
+        <div class="col-span-2">
+            <label class="font-bold text-emicon-navy">Workday Event WID (Bg_Event_Id)</label>
+            <input type="text" id="bgEventId" disabled class="w-full border p-2 bg-gray-200 rounded text-gray-500 font-mono text-sm">
+        </div>
         <div><label class="font-bold text-emicon-navy">Candidate ID</label><input type="text" id="candId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
         <div><label class="font-bold text-emicon-navy">Candidate Name</label><input type="text" id="candName" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
         <div><label class="font-bold text-emicon-navy">Applicant ID</label><input type="text" id="appId" disabled class="w-full border p-2 bg-gray-100 rounded"></div>
