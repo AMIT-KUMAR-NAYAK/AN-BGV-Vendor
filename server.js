@@ -17,6 +17,7 @@ let transactionCounter = 2;
 let candidates = [
   {
     bgvTransactionId: "BGV-2026-0001",
+    Bg_Event_Id: "aba64d315d8910010744ca98fced0000",
     candidateId: "AN0001",
     name: "Amit Kumar Nayak",
     applicantId: "APP-5521",
@@ -66,6 +67,8 @@ app.post('/api/candidates', (req, res) => {
 
     const newCandidate = {
       bgvTransactionId: uniqueBvgId,
+      // Safety net for Workday JSON casing variations
+      Bg_Event_Id: body.Bg_Event_Id || body.bgEventId || body.bg_event_id || "N/A",
       candidateId: body["Candidate ID"] || body.candidateId || "N/A",
       name: body["Name"] || body.name || "Unknown Candidate",
       applicantId: body["Applicant ID"] || body.applicantId || `APP-${Math.floor(1000 + Math.random() * 9000)}`,
