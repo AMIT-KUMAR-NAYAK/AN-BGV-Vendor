@@ -46,7 +46,8 @@ app.get('/api/candidates', (req, res) => {
 app.get('/api/candidates/submitted', (req, res) => {
   const submittedCandidates = candidates.filter(c => c.isSubmitted === true);
   candidates = candidates.filter(c => c.isSubmitted === false);
-  res.status(200).json(submittedCandidates);
+  res.status(200).json({ items: submittedCandidates });
+
 });
 
 // 3. POST: Accept candidate data and load into BGV
