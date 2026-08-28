@@ -32,13 +32,15 @@ let candidates = [
   }
 ];
 
+// Private backend history array (No endpoint exists to fetch this array)
+let candidateHistory = [];
+
 // ==========================================
 // API ENDPOINTS
 // ==========================================
 
 // 1. GET: Provide all candidate data (Submitted or not)
 app.get('/api/candidates', (req, res) => {
-  // Strip overallStatus from output in case it somehow exists on older records
   const cleanCandidates = candidates.map(({ overallStatus, ...rest }) => rest);
   res.status(200).json(cleanCandidates);
 });
@@ -48,7 +50,9 @@ app.get('/api/candidates/submitted', (req, res) => {
   const submittedCandidates = candidates.filter(c => c.isSubmitted === true);
   candidates = candidates.filter(c => c.isSubmitted === false);
   
-  // Strip overallStatus from output
+  // Moves candidates to history internally before returning them
+  candidateHistory.push(...submittedCandidates);
+  
   const cleanSubmitted = submittedCandidates.map(({ overallStatus, ...rest }) => rest);
   res.status(200).json({ items: cleanSubmitted });
 });
@@ -101,7 +105,6 @@ app.put('/api/candidates/:id', (req, res) => {
   const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
 
   if (index !== -1) {
-    // Explicitly delete overallStatus if it is passed in the request body to prevent it from saving
     if (req.body.overallStatus) {
         delete req.body.overallStatus;
     }
