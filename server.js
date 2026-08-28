@@ -24,7 +24,6 @@ let candidates = [
     jobRequisitionId: "REQ-101",
     vendorId: "EM-0001",
     recruiterName: "Jane Doe",
-    overallStatus: "Initiated",
     criminalStatus: "Pending",
     educationStatus: "Pending",
     addressStatus: "Pending",
@@ -39,15 +38,19 @@ let candidates = [
 
 // 1. GET: Provide all candidate data (Submitted or not)
 app.get('/api/candidates', (req, res) => {
-  res.status(200).json(candidates);
+  // Strip overallStatus from output in case it somehow exists on older records
+  const cleanCandidates = candidates.map(({ overallStatus, ...rest }) => rest);
+  res.status(200).json(cleanCandidates);
 });
 
 // 2. GET (DEQUEUE): Provide submitted candidates and remove them from memory
 app.get('/api/candidates/submitted', (req, res) => {
   const submittedCandidates = candidates.filter(c => c.isSubmitted === true);
   candidates = candidates.filter(c => c.isSubmitted === false);
-  res.status(200).json({ items: submittedCandidates });
-
+  
+  // Strip overallStatus from output
+  const cleanSubmitted = submittedCandidates.map(({ overallStatus, ...rest }) => rest);
+  res.status(200).json({ items: cleanSubmitted });
 });
 
 // 3. POST: Accept candidate data and load into BGV
@@ -68,7 +71,6 @@ app.post('/api/candidates', (req, res) => {
 
     const newCandidate = {
       bgvTransactionId: uniqueBvgId,
-      // Aggressive safety net to catch the WID no matter what the JSON key is named
       Bg_Event_Id: body.Bg_Event_Id || body.bgEventId || body.bg_event_id || body.eventId || body["Workday Event WID"] || "N/A",
       candidateId: body["Candidate ID"] || body.candidateId || "N/A",
       name: body["Name"] || body.name || "Unknown Candidate",
@@ -76,7 +78,6 @@ app.post('/api/candidates', (req, res) => {
       jobRequisitionId: body["Job Requisition ID"] || body.jobRequisitionId || "REQ-N/A",
       vendorId: body["BGV_Vendor_ID"] || body.vendorId || "EM-0001",
       recruiterName: body["Recruiter Name"] || body.recruiterName || "Workday System",
-      overallStatus: body.overallStatus || "Initiated",
       criminalStatus: body.criminalStatus || "Pending",
       educationStatus: body.educationStatus || "Pending",
       addressStatus: body.addressStatus || "Pending",
@@ -100,7 +101,11 @@ app.put('/api/candidates/:id', (req, res) => {
   const index = candidates.findIndex(c => c.bgvTransactionId === id || c.candidateId === id);
 
   if (index !== -1) {
-    // Update local database (safely merges the payload with the existing record)
+    // Explicitly delete overallStatus if it is passed in the request body to prevent it from saving
+    if (req.body.overallStatus) {
+        delete req.body.overallStatus;
+    }
+
     candidates[index] = {
       ...candidates[index],
       ...req.body,
