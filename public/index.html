@@ -26,6 +26,7 @@
       <button onclick="switchPage('Education')" class="w-full text-left p-4 hover:bg-emicon-orange transition" data-page="Education">Education Verification</button>
       <button onclick="switchPage('Address')" class="w-full text-left p-4 hover:bg-emicon-orange transition" data-page="Address">Address Verification</button>
       <button onclick="switchPage('Status')" class="w-full text-left p-4 hover:bg-emicon-orange transition" data-page="Status">Completed / Submitted</button>
+      <button onclick="switchPage('History')" class="w-full text-left p-4 hover:bg-emicon-orange transition border-t border-emicon-orange mt-2" data-page="History">History</button>
     </nav>
   </aside>
 
@@ -130,6 +131,7 @@
 
   <script>
     let dbData = [];
+    let historyData = []; // Local array to hold records with no backend endpoint
     let currentPage = 'Home';
 
     async function loadData() {
@@ -151,7 +153,8 @@
         'Criminal': 'Criminal Verification Filter',
         'Education': 'Education Verification Filter',
         'Address': 'Address Verification Filter',
-        'Status': 'Completed & Submitted Candidates'
+        'Status': 'Completed & Submitted Candidates',
+        'History': 'Archived Submission History'
       };
       document.getElementById('page-title').innerText = titles[page] || page;
 
@@ -176,7 +179,10 @@
       const tbody = document.getElementById('table-body');
       tbody.innerHTML = '';
 
-      const filtered = dbData.filter(c => {
+      const dataSource = currentPage === 'History' ? historyData : dbData;
+
+      const filtered = dataSource.filter(c => {
+        if (currentPage === 'History') return true; 
         if (currentPage === 'Status') return c.isSubmitted === true;
         if (c.isSubmitted === true) return false;
         if (currentPage === 'Home') return true; 
@@ -204,6 +210,10 @@
         const eduColor = getStatusColor(c.educationStatus);
         const addColor = getStatusColor(c.addressStatus);
 
+        const actionButton = currentPage === 'History' 
+          ? `<span class="text-gray-400 font-bold italic text-xs">Archived</span>` 
+          : `<button onclick="openProfile('${c.bgvTransactionId}')" class="bg-emicon-orange text-white px-3 py-1 rounded shadow hover:opacity-90">Review</button>`;
+
         tbody.innerHTML += `
           <tr class="border-b hover:bg-gray-50 transition text-sm">
             <td class="p-3 font-semibold">${c.bgvTransactionId}</td>
@@ -214,9 +224,7 @@
             <td class="p-3 font-bold ${eduColor}">${c.educationStatus}</td>
             <td class="p-3 font-bold ${addColor}">${c.addressStatus}</td>
             <td class="p-3">
-              <button onclick="openProfile('${c.bgvTransactionId}')" class="bg-emicon-orange text-white px-3 py-1 rounded shadow hover:opacity-90">
-                Review
-              </button>
+              ${actionButton}
             </td>
           </tr>
         `;
@@ -281,13 +289,17 @@
         const res = await fetch('/api/candidates/submitted');
         const dequeuedData = await res.json();
         
-        if (dequeuedData.length === 0) {
+        // Use dequeuedData.items.length based on backend response structure
+        if (!dequeuedData.items || dequeuedData.items.length === 0) {
           alert('No submitted candidates available to clear.');
           return;
         }
 
-        console.log("Dequeued candidates data payload ready for Workday ingestion:", dequeuedData);
-        alert(`Successfully exported and cleared ${dequeuedData.length} candidate(s) from the queue!`);
+        // Push dequeued candidates into frontend history array natively
+        historyData = [...historyData, ...dequeuedData.items];
+
+        console.log("Dequeued candidates data payload ready for Workday ingestion:", dequeuedData.items);
+        alert(`Successfully exported and cleared ${dequeuedData.items.length} candidate(s) from the queue!`);
         
         loadData();
       } catch(err) {
